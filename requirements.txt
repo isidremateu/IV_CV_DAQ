@@ -1,0 +1,6 @@
+numpy
+pyvisa
+pyvisa-py
+pyserial
+PySide6
+pyqtgraph

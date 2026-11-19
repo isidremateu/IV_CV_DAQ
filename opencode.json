@@ -1,0 +1,105 @@
+
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "cern-aigw/glm-5.3-flash-int4",
+  "default_agent": "plan",
+  "share": "disabled",
+
+  "providers": {
+    "cern-aigw": {
+      "name": "CERN AI Gateway",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://aigw.cern.ch",
+        "apiKey": "{env:CERN_AIGW_API_KEY}"
+      },
+      "models": {
+        "glm-5.3-flash-int4": {
+          "name": "GLM 5.3 Flash INT4 (CERN)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 917504,
+            "output": 131072
+          }
+        },
+        "gemma-4-12b-it-qat-w4a16-ct": {
+          "name": "Gemma 4 12B (CERN)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 98304,
+            "output": 32768
+          }
+        },
+        "qwen3.8-27b-fp16": {
+          "name": "Qwen 3.8 27B FP16 (CERN)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 98304,
+            "output": 32768
+          }
+        },
+        "hf-qwen3-32b-awq": {
+          "name": "Qwen3 32B AWQ (CERN)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 12288,
+            "output": 4096
+          }
+        },
+        "gpt-oss-20b": {
+          "name": "GPT OSS 20B (CERN)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 24576,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+
+  "agents": {
+    "compaction": {
+      "model": "cern-aigw/gemma-4-12b-it-qat-w4a16-ct"
+    }
+  },
+
+  "permissions": [
+    {"action": "shell", "resource": "*", "effect": "ask"},
+    {"action": "edit", "resource": "*", "effect": "ask"},
+    {"action": "webfetch", "resource": "*", "effect": "ask"},
+    {"action": "websearch", "resource": "*", "effect": "deny"},
+    {"action": "read", "resource": "~/.secrets/*", "effect": "deny"},
+    {"action": "read", "resource": "*.env", "effect": "deny"},
+    {"action": "read", "resource": "*.env.*", "effect": "deny"},
+    {"action": "cerngitlab_*", "resource": "*", "effect": "ask"},
+    {"action": "grafana_*", "resource": "*", "effect": "ask"}
+  ],
+
+  "experimental": {
+    "policies": [
+      {"action": "provider.use", "resource": "*", "effect": "deny"},
+      {"action": "provider.use", "resource": "cern-aigw", "effect": "allow"}
+    ]
+  }
+}
