@@ -23,7 +23,8 @@ class MeasurementThread(QThread):
     message = Signal(str)
     done = Signal(bool, str)
 
-    def __init__(self, mode, hvps_cfg, meas_cfg, run_cfg, resources, sim=False):
+    def __init__(self, mode, hvps_cfg, meas_cfg, run_cfg, resources, sim=False,
+                 serial_probes=None):
         super().__init__()
         self.mode = mode
         self.hvps_cfg = hvps_cfg
@@ -31,6 +32,7 @@ class MeasurementThread(QThread):
         self.run_cfg = run_cfg
         self.resources = resources
         self.sim = sim
+        self.serial_probes = serial_probes
         self._stop = False
         self._drivers = []
 
@@ -85,11 +87,13 @@ class MeasurementThread(QThread):
         from drivers.keithley2410 import Keithley2410
         from drivers.session import open_session
 
-        hvps = Keithley2410.connect(self.resources["hvps"], timeout=5.0)
+        hvps = Keithley2410.connect(self.resources["hvps"], timeout=5.0,
+                                    serial_probes=self.serial_probes)
         self._drivers.append(hvps)
         if self.mode == "iv":
             from drivers.keithley6487 import Keithley6487
-            meas = Keithley6487.connect(self.resources["pico"], timeout=5.0)
+            meas = Keithley6487.connect(self.resources["pico"], timeout=5.0,
+                                        serial_probes=self.serial_probes)
         else:
             from drivers.hp4284a import HP4284A
             meas = HP4284A.connect(self.resources["lcr"], timeout=10.0)
@@ -103,9 +107,10 @@ class DetectThread(QThread):
     progress = Signal(str)
     done = Signal(dict, str)  # found {key: {resource, idn}}, summary message
 
-    def __init__(self, sim=False):
+    def __init__(self, sim=False, serial_probes=None):
         super().__init__()
         self.sim = sim
+        self.serial_probes = serial_probes
 
     def run(self):
         if self.sim:
@@ -115,7 +120,8 @@ class DetectThread(QThread):
             return
         from drivers.detect import scan_for_instruments
         try:
-            found, missing = scan_for_instruments(progress=self.progress.emit)
+            found, missing = scan_for_instruments(
+                progress=self.progress.emit, serial_probes=self.serial_probes)
         except Exception as error:
             self.done.emit({}, f"Instrument scan failed: {error}")
             return
@@ -315,10 +321,16 @@ class MainWindow(QMainWindow):
         """Scan the buses for the instruments and fill in the resource fields."""
         if self.detector is not None or self.thread is not None:
             return
+        try:
+            probes = self.connections.serial_probes()
+        except ValueError as error:
+            QMessageBox.warning(self, "Invalid settings",
+                                f"Serial probe settings: {error}")
+            return
         self.connections.detect_button.setEnabled(False)
         self.start_button.setEnabled(False)
         self._log("Scanning for instruments (GPIB + serial ports)...")
-        self.detector = DetectThread(sim=self.sim)
+        self.detector = DetectThread(sim=self.sim, serial_probes=probes)
         self.detector.progress.connect(self._log)
         self.detector.done.connect(self._detect_done)
         self.detector.start()
@@ -355,6 +367,12 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Invalid settings",
                                     f"Missing resource string(s): {missing}")
                 return
+        try:
+            serial_probes = self.connections.serial_probes()
+        except ValueError as error:
+            QMessageBox.warning(self, "Invalid settings",
+                                f"Serial probe settings: {error}")
+            return
 
         self.plot.set_mode(mode)
         self.log.clear()
@@ -363,7 +381,8 @@ class MainWindow(QMainWindow):
         self._set_running(True)
 
         self.thread = MeasurementThread(mode, hvps_cfg, meas_cfg, run_cfg,
-                                        resources, sim=self.sim)
+                                        resources, sim=self.sim,
+                                        serial_probes=serial_probes)
         self.thread.point.connect(self.plot.add_point)
         self.thread.message.connect(self._log)
         self.thread.done.connect(self._finished)

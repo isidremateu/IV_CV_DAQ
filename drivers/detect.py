@@ -11,7 +11,12 @@ the instrument model:
 The scan is best-effort: resources that cannot be opened (e.g. busy ports,
 missing drivers) or that do not answer in time are skipped. Probing with
 *IDN? is harmless for the instruments.
+
+The serial line settings to probe can be restricted for faster scans:
+`parse_serial_probes("19200/even/8")` etc.
 """
+
+import re
 
 MODELS = {
     "hvps": "2410",
@@ -44,6 +49,43 @@ def identify(idn):
         if model in s:
             return key
     return None
+
+
+def parse_serial_probes(text):
+    """Parse user-supplied serial line settings.
+
+    Accepts a string like "19200/even/8" or "19200/even/8, 9600/none/7"
+    (separators: commas, semicolons and/or whitespace). Returns a list of
+    (baud, parity, data_bits) tuples, or None for an empty string (meaning:
+    probe all supported combinations).
+    """
+    text = (text or "").strip()
+    if not text:
+        return None
+    probes = []
+    for token in re.split(r"[,;\s]+", text):
+        if not token:
+            continue
+        parts = token.lower().split("/")
+        if len(parts) != 3:
+            raise ValueError(
+                f"Invalid serial settings '{token}' "
+                "(expected baud/parity/data_bits, e.g. 19200/even/8)")
+        try:
+            baud, data_bits = int(parts[0]), int(parts[2])
+        except ValueError:
+            raise ValueError(f"Invalid number in serial settings '{token}'")
+        parity = parts[1]
+        if not 300 <= baud <= 115200:
+            raise ValueError(f"Invalid baud rate '{parts[0]}' in '{token}'")
+        if parity not in ("none", "even", "odd"):
+            raise ValueError(
+                f"Invalid parity '{parts[1]}' in '{token}' (none/even/odd)")
+        if data_bits not in (7, 8):
+            raise ValueError(
+                f"Invalid data bits '{parts[2]}' in '{token}' (7 or 8)")
+        probes.append((baud, parity, data_bits))
+    return probes or None
 
 
 def candidate_resources():
@@ -89,7 +131,8 @@ def candidate_resources():
     return result
 
 
-def scan_for_instruments(candidates=None, *, progress=None, session_factory=None):
+def scan_for_instruments(candidates=None, *, progress=None, session_factory=None,
+                         serial_probes=None):
     """Probe candidate resources and identify the DAQ instruments.
 
     Parameters
@@ -97,6 +140,8 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
     candidates : list of resource strings; enumerated automatically if None
     progress : callable(str) for progress messages
     session_factory : injectable session opener (for testing)
+    serial_probes : list of (baud, parity, data_bits) line settings to try on
+        serial ports; defaults to all supported combinations (SERIAL_PROBES)
 
     Returns
     -------
@@ -109,6 +154,7 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
         from drivers.session import open_session as session_factory
     if candidates is None:
         candidates = candidate_resources()
+    probes = list(serial_probes) if serial_probes else SERIAL_PROBES
 
     found = {}
     progress(f"Scanning {len(candidates)} resource(s)...")

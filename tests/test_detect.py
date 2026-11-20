@@ -85,6 +85,72 @@ def test_scan_reports_unrecognized_instruments():
     assert missing == ["hvps", "pico", "lcr"]
 
 
+def test_parse_serial_probes():
+    from drivers.detect import parse_serial_probes
+    assert parse_serial_probes("") is None
+    assert parse_serial_probes(None) is None
+    assert parse_serial_probes("19200/even/8") == [(19200, "even", 8)]
+    assert parse_serial_probes("19200/even/8, 9600/none/7") == [
+        (19200, "even", 8), (9600, "none", 7)]
+    with pytest.raises(ValueError):
+        parse_serial_probes("123456/even/8")          # invalid baud
+    with pytest.raises(ValueError):
+        parse_serial_probes("9600/weird/8")           # invalid parity
+    with pytest.raises(ValueError):
+        parse_serial_probes("9600/even/9")            # invalid data bits
+    with pytest.raises(ValueError):
+        parse_serial_probes("9600-even-8")            # wrong format
+
+
+def test_scan_uses_configured_probes():
+    candidates = ["ASRL/dev/ttyS0::INSTR"]
+    used = []
+
+    def factory(resource, **kwargs):
+        used.append(kwargs)
+        return FakeScanSession("KEITHLEY INSTRUMENTS INC., MODEL 2410, 1, C33")
+
+    scan_for_instruments(candidates, session_factory=factory,
+                         serial_probes=[(19200, "even", 8)])
+    assert len(used) == 1
+    assert used[0]["baud"] == 19200
+    assert used[0]["parity"] == "even"
+    assert used[0]["data_bits"] == 8
+
+
+def test_connect_uses_configured_probes():
+    idn2410 = "KEITHLEY INSTRUMENTS INC., MODEL 2410, 1, C33"
+
+    class FakeBaudSession:
+        def __init__(self, baud, parity, data_bits):
+            self.settings = (baud, parity, data_bits)
+            self.commands = []
+
+        def write(self, command):
+            self.commands.append(command)
+
+        def query(self, command):
+            self.commands.append(command)
+            if command == "*IDN?" and self.settings == (19200, "even", 8):
+                return idn2410
+            raise RuntimeError("timeout expired")
+
+        def close(self):
+            pass
+
+    created = {}
+
+    def factory(resource, baud=9600, timeout=5.0, parity="none", data_bits=8):
+        session = FakeBaudSession(baud, parity, data_bits)
+        created["session"] = session
+        return session
+
+    driver = Keithley2410.connect("ASRL/dev/ttyS0::INSTR", session_factory=factory,
+                                  serial_probes=[(19200, "even", 8)])
+    assert created["session"].settings == (19200, "even", 8)
+    assert driver is not None
+
+
 def test_connect_autodetects_baud_and_parity():
     """The 2410 may be configured away from 9600/none (e.g. 19200/even)."""
     idn2410 = "KEITHLEY INSTRUMENTS INC., MODEL 2410, 1, C33"

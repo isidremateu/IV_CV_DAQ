@@ -70,6 +70,12 @@ def prologix_scan(resource):
 
 
 def main():
+    probes = None
+    if len(sys.argv) > 1:
+        from drivers.detect import parse_serial_probes
+        probes = parse_serial_probes(" ".join(sys.argv[1:]))
+        print(f"Serial line settings to probe: {probes}")
+
     print("== VISA backends ==")
     print("  linux-gpib bindings:", end=" ")
     try:
@@ -90,7 +96,7 @@ def main():
     for res in resources:
         r = str(res)
         if r.upper().startswith("ASRL"):
-            for baud, parity, data_bits in SERIAL_PROBES:
+            for baud, parity, data_bits in (probes or SERIAL_PROBES):
                 idn, error = probe(r, baud, parity, data_bits)
                 if error is None:
                     print(f"  {r} @ {baud}/{parity}/{data_bits}: "

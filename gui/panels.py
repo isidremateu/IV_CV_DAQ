@@ -456,8 +456,31 @@ class ConnectionsPanel(QGroupBox):
             "(each is briefly queried with *IDN?)")
         lay.addWidget(self.detect_button)
 
+        row = QHBoxLayout()
+        row.addWidget(_label("Serial line settings to probe"))
+        self.serial_probes_field = QLineEdit("19200/even/8")
+        self.serial_probes_field.setToolTip(
+            "Line settings tried on each serial port during detection and "
+            "when connecting: baud/parity/data_bits, several combinations "
+            "separated by commas (e.g. '19200/even/8, 9600/none/8'). "
+            "Leave empty to probe all combinations supported by the "
+            "instruments.")
+        row.addWidget(self.serial_probes_field)
+        lay.addLayout(row)
+
     def resources(self) -> dict:
         return {key: field.text().strip() for key, field in self.fields.items()}
+
+    def serial_probes(self):
+        """Parsed probe settings; None means 'probe all supported ones'."""
+        from drivers.detect import parse_serial_probes
+        return parse_serial_probes(self.serial_probes_field.text())
+
+    def probe_text(self) -> str:
+        return self.serial_probes_field.text()
+
+    def set_probe_text(self, value):
+        self.serial_probes_field.setText(str(value))
 
     def set_resource(self, key: str, value: str):
         self.fields[key].setText(value)
@@ -465,4 +488,5 @@ class ConnectionsPanel(QGroupBox):
     def set_enabled(self, enabled: bool):
         for field in self.fields.values():
             field.setEnabled(enabled)
+        self.serial_probes_field.setEnabled(enabled)
         self.detect_button.setEnabled(enabled)

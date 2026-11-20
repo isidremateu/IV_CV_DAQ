@@ -62,6 +62,7 @@ def test_collect_and_apply_state(window):
     assert state["hvps"]["v_end"] == 123.0
     assert state["pico"]["averaging"] == 5
     assert state["lcr"]["frequency"] == 2e4
+    assert state["connections"]["serial_probes"] == "19200/even/8"
 
     # change everything, then apply the state back
     window.mode_combo.setCurrentText("iv")

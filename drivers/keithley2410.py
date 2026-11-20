@@ -14,18 +14,21 @@ class Keithley2410(InstrumentBase):
 
     @classmethod
     def connect(cls, resource: str, *, timeout: float = 5.0,
-                session_factory=None):
+                session_factory=None, serial_probes=None):
         """Open a session (RS-232) and return a configured driver instance.
 
-        The serial line settings (baud rate, parity) are auto-detected and the
-        connected instrument is verified to be a Model 2410 via *IDN?.
+        The serial line settings (baud rate, parity, data bits) are
+        auto-detected and the connected instrument is verified to be a Model
+        2410 via *IDN?. `serial_probes` restricts the tried combinations
+        (defaults to all supported ones).
         """
         if session_factory is None:
             from drivers.session import open_session as session_factory
         from drivers.detect import SERIAL_PROBES, identify
 
+        probes = list(serial_probes) if serial_probes else SERIAL_PROBES
         last_error = None
-        for baud, parity, data_bits in SERIAL_PROBES:
+        for baud, parity, data_bits in probes:
             session = None
             try:
                 session = session_factory(resource, baud=baud, timeout=timeout,

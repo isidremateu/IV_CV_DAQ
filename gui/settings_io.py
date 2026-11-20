@@ -58,6 +58,7 @@ def collect_state(window):
         except ValueError as error:
             warnings.append(f"'{key}' section not saved: {error}")
     state["connections"] = window.connections.resources()
+    state["connections"]["serial_probes"] = window.connections.probe_text()
     state["run"] = {"folder": window.save_panel.folder.text(),
                     "identifier": window.save_panel.identifier.text()}
     return state, warnings
@@ -90,6 +91,8 @@ def apply_state(window, state: dict):
         for key, value in connections.items():
             if key in window.connections.fields:
                 window.connections.set_resource(key, str(value))
+        if "serial_probes" in connections:
+            window.connections.set_probe_text(connections["serial_probes"])
 
     run = state.get("run")
     if isinstance(run, dict):
