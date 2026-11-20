@@ -139,6 +139,34 @@ source .venv/bin/activate
 python -m pytest tests/ -v
 ```
 
+## Troubleshooting
+
+**`xkbcommon: ERROR: failed to add default include path .../anaconda3/share/X11/xkb`**
+followed by `qt.qpa.wayland: failed to create xkb context` — the GUI is
+running with Anaconda's libraries, whose `libxkbcommon` looks for the X
+keyboard data inside the Anaconda prefix (where it does not exist). Fixes:
+
+1. Recommended: recreate the virtual environment with the system Python so
+   no Anaconda libraries are used:
+   ```bash
+   conda deactivate
+   rm -rf .venv
+   /usr/bin/python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ldd .venv/bin/python | grep conda   # should print nothing
+   ```
+2. Or link the system keyboard data into the Anaconda prefix:
+   ```bash
+   mkdir -p ~/anaconda3/share/X11
+   ln -s /usr/share/X11/xkb ~/anaconda3/share/X11/xkb
+   ```
+3. Or point libxkbcommon at the system data:
+   `export XKB_CONFIG_ROOT=/usr/share/X11/xkb`
+
+When launching from an X11-forwarded SSH session, try
+`QT_QPA_PLATFORM=xcb python main.py`.
+
 ## Project structure
 
 ```
