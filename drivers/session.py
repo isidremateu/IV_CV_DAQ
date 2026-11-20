@@ -68,24 +68,21 @@ def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0,
         kwargs["data_bits"] = int(data_bits)
         kwargs["stop_bits"] = {1: StopBits.one, 2: StopBits.two}[int(stop_bits)]
 
-    try:
-        manager = pyvisa.ResourceManager()
-        session = manager.open_resource(resource, **kwargs)
-        if session is None:
-            raise RuntimeError(f"Could not open resource '{resource}'")
-    except Exception as first_error:
+    # backend order: vendor VISA (NI-VISA), pure-python (serial/USB/TCP), and
+    # Linux-GPIB (needed for NI GPIB adapters on Linux where NI-VISA cannot
+    # drive them). The first backend that can open the resource wins.
+    last_error = None
+    for backend in ("", "@py", "@gpib"):
         try:
-            manager = pyvisa.ResourceManager("@py")
+            manager = pyvisa.ResourceManager(backend)
             session = manager.open_resource(resource, **kwargs)
             if session is None:
                 raise RuntimeError(f"Could not open resource '{resource}'")
-        except Exception:
-            raise RuntimeError(
-                f"Could not connect to '{resource}'. "
-                f"Default backend error: {first_error}"
-            )
-
-    if resource.upper().startswith("ASRL"):
-        return _AdaptiveTerminationSession(session)
-    return session
+        except Exception as error:
+            last_error = error
+            continue
+        if resource.upper().startswith("ASRL"):
+            return _AdaptiveTerminationSession(session)
+        return session
+    raise RuntimeError(f"Could not connect to '{resource}': {last_error}")
 

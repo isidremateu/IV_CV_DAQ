@@ -70,7 +70,7 @@ def prologix_scan(resource):
 
 def main():
     print("== VISA backends ==")
-    for backend in ("", "@py"):
+    for backend in ("", "@py", "@gpib"):
         try:
             rm = pyvisa.ResourceManager(backend)
             res = list(rm.list_resources())

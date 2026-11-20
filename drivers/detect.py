@@ -43,26 +43,41 @@ def identify(idn):
 
 
 def candidate_resources():
-    """All VISA resources visible on this machine (GPIB first, serial last)."""
+    """All VISA resources visible on this machine (GPIB first, serial last).
+
+    Resources are merged from every available backend: the vendor VISA
+    implementation (if any), the pure-python backend (pyvisa-py, serial etc.),
+    and the Linux-GPIB backend (pyvisa-gpib, for NI GPIB adapters driven by
+    linux-gpib). If a GPIB backend is available but lists no instruments, the
+    GPIB addresses are probed explicitly (list_resources is unreliable there).
+    """
     resources = []
+    seen = set()
+    gpib_backend_available = False
     try:
         import pyvisa
     except ImportError:
         return resources
 
-    # default VISA implementation first, pure-python backend as fallback
-    for backend in ("", "@py"):
+    for backend in ("", "@py", "@gpib"):
         try:
-            resources = list(pyvisa.ResourceManager(backend).list_resources())
-            if resources:
-                break
+            manager = pyvisa.ResourceManager(backend)
+            if backend == "@gpib":
+                gpib_backend_available = True
+            for r in manager.list_resources():
+                if str(r) not in seen:
+                    seen.add(str(r))
+                    resources.append(r)
         except Exception:
             continue
 
     as_upper = lambda r: str(r).upper()
     gpib = [r for r in resources if "GPIB" in as_upper(r)]
     serial = [r for r in resources if as_upper(r).startswith("ASRL")]
-    return gpib + serial
+    result = gpib + serial
+    if gpib_backend_available and not gpib:
+        result += [f"GPIB0::{addr}::INSTR" for addr in range(1, 31)]
+    return result
 
 
 def scan_for_instruments(candidates=None, *, progress=None, session_factory=None):
