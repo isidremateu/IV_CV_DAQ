@@ -1,9 +1,21 @@
+import pytest
+
 from tests.fakes import FakeSession
 
-from drivers.base import parse_scpi_float
+from drivers.base import InstrumentError, parse_scpi_float
 from drivers.hp4284a import HP4284A
 from drivers.keithley2410 import Keithley2410
 from drivers.keithley6487 import Keithley6487
+
+
+def test_setup_rejected_command_is_reported():
+    """A command rejected by the instrument raises, naming the command."""
+    s = FakeSession("ke2410")
+    s.responses[":SYST:ERR?"] = '-102,"Syntax error"'
+    d = Keithley2410(s)
+    with pytest.raises(InstrumentError, match=":SOUR:FUNC VOLT"):
+        d.setup(compliance=1e-6, autorange=True, autorange_llimit=1e-6,
+                fixed_range=1e-6)
 
 
 def test_parse_scpi_float_variants():
@@ -21,6 +33,9 @@ def test_2410_setup_and_voltage():
     assert ":SOUR:FUNC VOLT" in joined
     assert ":SOUR:VOLT:RANG 1000" in joined
     assert ':SENS:FUNC "CURR"' in joined
+    # the 2400 response elements are CURR/VOLT/RES/... ('READ' is the 6487's
+    # nomenclature and triggers a -102 syntax error)
+    assert ":FORM:ELEM CURR" in joined
     assert ":SENS:CURR:PROT:LEV 5.000000e-07" in joined
     assert ":SENS:CURR:RANG:AUTO ON" in joined
     assert ":SENS:CURR:RANG:AUTO:LLIM 1.000000e-09" in joined

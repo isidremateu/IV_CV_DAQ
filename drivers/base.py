@@ -48,6 +48,19 @@ class InstrumentBase:
     def __init__(self, session):
         self.session = session
 
+    def _send_checked(self, command: str):
+        """Send a command and verify the instrument accepted it.
+
+        Queries the error queue immediately after the command, so a rejected
+        command (e.g. -102 syntax errors) is reported with its full text and
+        the command that caused it.
+        """
+        self._send(command)
+        err = str(self.session.query(":SYST:ERR?")).strip()
+        match = re.match(r"\s*([+-]?\d+)", err)
+        if match is None or match.group(1).lstrip("+") != "0":
+            raise InstrumentError(f"Instrument rejected '{command}': {err}")
+
     def _send(self, command: str):
         self.session.write(command)
 

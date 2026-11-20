@@ -55,19 +55,22 @@ class Keithley2410(InstrumentBase):
     def setup(self, compliance: float, autorange: bool, autorange_llimit: float,
               fixed_range: float):
         """Apply the HVPS configuration shared by IV and CV modes."""
-        self._send(":SOUR:FUNC VOLT")
-        self._send(":SOUR:VOLT:MODE FIXED")
-        self._send(f":SOUR:VOLT:RANG {self.RANGE:g}")
-        self._send(':SENS:FUNC "CURR"')
-        self._send(":FORM:ELEM READ")
-        self._send(f":SENS:CURR:PROT:LEV {scpi_number(compliance)}")
+        self._send_checked(":SOUR:FUNC VOLT")
+        self._send_checked(":SOUR:VOLT:MODE FIXED")
+        self._send_checked(f":SOUR:VOLT:RANG {self.RANGE:g}")
+        # NOTE: the 2400's response elements are CURR/VOLT/RES/TIME/STAT -
+        # 'READ' is the 6487's nomenclature and is rejected with error -102
+        self._send_checked(':SENS:FUNC "CURR"')
+        self._send_checked(":FORM:ELEM CURR")
+        self._send_checked(f":SENS:CURR:PROT:LEV {scpi_number(compliance)}")
         if autorange:
-            self._send(":SENS:CURR:RANG:AUTO ON")
-            self._send(f":SENS:CURR:RANG:AUTO:LLIM {scpi_number(autorange_llimit)}")
+            self._send_checked(":SENS:CURR:RANG:AUTO ON")
+            self._send_checked(
+                f":SENS:CURR:RANG:AUTO:LLIM {scpi_number(autorange_llimit)}")
         else:
-            self._send(":SENS:CURR:RANG:AUTO OFF")
-            self._send(f":SENS:CURR:RANG {scpi_number(fixed_range)}")
-        self._send(":OUTP OFF")
+            self._send_checked(":SENS:CURR:RANG:AUTO OFF")
+            self._send_checked(f":SENS:CURR:RANG {scpi_number(fixed_range)}")
+        self._send_checked(":OUTP OFF")
 
     def output(self, on: bool):
         self._send(":OUTP {}".format("ON" if on else "OFF"))

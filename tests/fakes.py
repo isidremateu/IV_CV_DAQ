@@ -27,6 +27,8 @@ class FakeSession:
     def query(self, command: str, delay=None) -> str:
         self.commands.append(command)
         cmd = command.strip().upper()
+        if cmd == ":SYST:ERR?":
+            return self.responses.get(cmd, "0,No error")
         if cmd == "*OPC?":
             return "1"
         if cmd == ":SOUR:VOLT:LEV?":

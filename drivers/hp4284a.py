@@ -42,19 +42,19 @@ class HP4284A(InstrumentBase):
 
     def setup(self, frequency: float, aper: str, level: float):
         """Apply the LCR settings from the GUI panel."""
-        self._send(":FUNC:IMP CPG")
-        self._send(f":FREQ {scpi_number(frequency)}")
-        self._send(f":VOLT {scpi_number(level)}")
-        self._send(f":APER {APER_MAP[aper.lower()]}")
-        self._send(":TRIG:SOUR BUS")
-        self._send(":TRIG:DEL 0")
+        self._send_checked(":FUNC:IMP CPG")
+        self._send_checked(f":FREQ {scpi_number(frequency)}")
+        self._send_checked(f":VOLT {scpi_number(level)}")
+        self._send_checked(f":APER {APER_MAP[aper.lower()]}")
+        self._send_checked(":TRIG:SOUR BUS")
+        self._send_checked(":TRIG:DEL 0")
         # external HV bias comes from the Keithley 2410:
-        self._send(":BIAS:STAT OFF")       # internal bias off
-        self._send(":OUTP:DC:ISOL ON")     # DC isolation on
+        self._send_checked(":BIAS:STAT OFF")       # internal bias off
+        self._send_checked(":OUTP:DC:ISOL ON")     # DC isolation on
         # all corrections disabled
-        self._send(":CORR:OPEN:STAT OFF")
-        self._send(":CORR:SHOR:STAT OFF")
-        self._send(":CORR:LOAD:STAT OFF")
+        self._send_checked(":CORR:OPEN:STAT OFF")
+        self._send_checked(":CORR:SHOR:STAT OFF")
+        self._send_checked(":CORR:LOAD:STAT OFF")
 
     def read(self):
         """Trigger one measurement and return (capacitance_F, conductance_S).

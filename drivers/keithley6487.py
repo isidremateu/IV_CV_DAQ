@@ -54,31 +54,34 @@ class Keithley6487(InstrumentBase):
               nplc: float, damping: bool, median_on: bool, median_rank: int,
               filter_on: bool, filter_type: str, filter_count: int):
         """Apply all picoammeter settings from the GUI panel."""
-        self._send(":FORM:ELEM READ")
-        self._send(':SENS:FUNC "CURR"')
-        self._send(f":SENS:CURR:NPLC {scpi_number(nplc)}")
+        self._send_checked(":FORM:ELEM READ")
+        self._send_checked(':SENS:FUNC "CURR"')
+        self._send_checked(f":SENS:CURR:NPLC {scpi_number(nplc)}")
 
-        self._send(":SENS:CURR:DAMP {}".format("ON" if damping else "OFF"))
+        self._send_checked(":SENS:CURR:DAMP {}".format("ON" if damping else "OFF"))
 
-        self._send(":SENS:CURR:MED:STAT {}".format("ON" if median_on else "OFF"))
+        self._send_checked(
+            ":SENS:CURR:MED:STAT {}".format("ON" if median_on else "OFF"))
         if median_on:
-            self._send(f":SENS:CURR:MED:RANK {int(median_rank)}")
+            self._send_checked(f":SENS:CURR:MED:RANK {int(median_rank)}")
 
-        self._send(":SENS:CURR:AVER:STAT {}".format("ON" if filter_on else "OFF"))
+        self._send_checked(
+            ":SENS:CURR:AVER:STAT {}".format("ON" if filter_on else "OFF"))
         if filter_on:
             tcon = "MOV" if filter_type == "moving" else "REP"
-            self._send(f":SENS:CURR:AVER:TCON {tcon}")
-            self._send(f":SENS:CURR:AVER:COUN {int(filter_count)}")
+            self._send_checked(f":SENS:CURR:AVER:TCON {tcon}")
+            self._send_checked(f":SENS:CURR:AVER:COUN {int(filter_count)}")
 
         if autorange:
-            self._send(":SENS:CURR:RANG:AUTO ON")
-            self._send(f":SENS:CURR:RANG:AUTO:LLIM {scpi_number(autorange_llimit)}")
+            self._send_checked(":SENS:CURR:RANG:AUTO ON")
+            self._send_checked(
+                f":SENS:CURR:RANG:AUTO:LLIM {scpi_number(autorange_llimit)}")
         else:
-            self._send(":SENS:CURR:RANG:AUTO OFF")
-            self._send(f":SENS:CURR:RANG {scpi_number(fixed_range)}")
+            self._send_checked(":SENS:CURR:RANG:AUTO OFF")
+            self._send_checked(f":SENS:CURR:RANG {scpi_number(fixed_range)}")
 
         # Zero check must be off while measuring (readings are suppressed otherwise)
-        self._send(":SYST:ZCH OFF")
+        self._send_checked(":SYST:ZCH OFF")
 
     def read_current(self) -> float:
         """Read the sensor pad current."""
