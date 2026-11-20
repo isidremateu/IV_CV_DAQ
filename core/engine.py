@@ -5,6 +5,7 @@ A GUI worker thread drives it through callbacks and the `should_stop` flag.
 """
 
 import os
+import re
 import time
 from datetime import datetime
 
@@ -105,6 +106,17 @@ class MeasurementEngine:
             self.meas_instrument.setup(frequency=self.meas_cfg.frequency,
                                        aper=self.meas_cfg.aper,
                                        level=self.meas_cfg.level)
+
+        # report (and clear) instrument-side errors right after configuration,
+        # e.g. rejected commands the instruments show on their displays
+        for name, instr in (("HVPS", self.hvps),
+                            (self.mode.upper(), self.meas_instrument)):
+            try:
+                err = str(instr.session.query(":SYST:ERR?")).strip()
+                if not re.match(r"\s*\+?0\b", err):
+                    self._message(f"WARNING {name}: {err}")
+            except Exception:
+                pass
 
         columns = IV_COLUMNS if self.mode == "iv" else CV_COLUMNS
         data_file = MeasurementFile(data_path, columns)

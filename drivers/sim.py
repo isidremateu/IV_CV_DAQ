@@ -72,6 +72,8 @@ class SimSession:
             return "1"
         if cmd == ":SOUR:VOLT:LEV?":
             return f"{self.voltage:+.6E}"
+        if cmd == ":SYST:ERR?":
+            return "0,No error"
         if cmd == ":READ?":
             return self._reading()
         if cmd == ":FETC?" or cmd == ":TRIG:IMM;:FETC?":

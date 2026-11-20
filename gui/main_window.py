@@ -44,6 +44,8 @@ class MeasurementThread(QThread):
 
     # ------------------------------------------------------------------ run
     def run(self):
+        ok = False
+        message = "Measurement ended."
         try:
             hvps, meas = self._connect()
             self.message.emit("Instruments connected")
@@ -60,7 +62,8 @@ class MeasurementThread(QThread):
                 should_stop=lambda: self._stop,
             )
             result = engine.run()
-            self.done.emit(True, f"Measurement {result['status']}.")
+            ok = True
+            message = f"Measurement {result['status']}."
         except Exception as error:  # surface any failure in the GUI
             message = f"{type(error).__name__}: {error}"
             # surface instrument-side error queues (e.g. syntax errors that
@@ -73,13 +76,16 @@ class MeasurementThread(QThread):
                         message += f"\n{type(driver).__name__} reports: {err}"
                 except Exception:
                     pass
-            self.done.emit(False, message)
         finally:
+            # close the sessions BEFORE emitting done: the GUI destroys this
+            # thread when the signal arrives, and destroying a QThread while
+            # its run() is still executing aborts the whole application
             for driver in self._drivers:
                 try:
                     driver.close()
                 except Exception:
                     pass
+        self.done.emit(ok, message)
 
     def _connect(self):
         if self.sim:
@@ -359,6 +365,8 @@ class MainWindow(QMainWindow):
             self._log(f"  -> {labels.get(key, key)} set to {info['resource']}")
         self.connections.detect_button.setEnabled(True)
         self.start_button.setEnabled(True)
+        if self.detector is not None:
+            self.detector.wait()   # ensure the thread has fully exited
         self.detector = None
 
     def start_measurement(self):
@@ -410,6 +418,8 @@ class MainWindow(QMainWindow):
     def _finished(self, ok: bool, message: str):
         self._log(message)
         self._set_running(False)
+        if self.thread is not None:
+            self.thread.wait()   # ensure the thread has fully exited
         self.thread = None
         if not ok:
             QMessageBox.critical(self, "Measurement failed", message)
