@@ -70,6 +70,12 @@ def prologix_scan(resource):
 
 def main():
     print("== VISA backends ==")
+    print("  linux-gpib bindings:", end=" ")
+    try:
+        import gpib
+        print("available")
+    except ImportError:
+        print("NOT INSTALLED (needed for GPIB adapters)")
     for backend in ("", "@py", "@gpib"):
         try:
             rm = pyvisa.ResourceManager(backend)

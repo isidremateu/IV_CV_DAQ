@@ -53,7 +53,11 @@ def candidate_resources():
     """
     resources = []
     seen = set()
-    gpib_backend_available = False
+    gpib_bindings_available = True
+    try:
+        import gpib  # linux-gpib Python bindings
+    except ImportError:
+        gpib_bindings_available = False
     try:
         import pyvisa
     except ImportError:
@@ -63,7 +67,7 @@ def candidate_resources():
         try:
             manager = pyvisa.ResourceManager(backend)
             if backend == "@gpib":
-                gpib_backend_available = True
+                gpib_bindings_available = True
             for r in manager.list_resources():
                 if str(r) not in seen:
                     seen.add(str(r))
@@ -75,7 +79,8 @@ def candidate_resources():
     gpib = [r for r in resources if "GPIB" in as_upper(r)]
     serial = [r for r in resources if as_upper(r).startswith("ASRL")]
     result = gpib + serial
-    if gpib_backend_available and not gpib:
+    if gpib_bindings_available and not gpib:
+        # linux-gpib cannot list instruments reliably: probe all addresses
         result += [f"GPIB0::{addr}::INSTR" for addr in range(1, 31)]
     return result
 

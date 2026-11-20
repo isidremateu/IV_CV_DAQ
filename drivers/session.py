@@ -1,6 +1,9 @@
 """VISA session handling."""
 
+import re
 import sys
+
+from drivers.linux_gpib import is_gpib_resource
 
 
 class _AdaptiveTerminationSession:
@@ -71,6 +74,16 @@ def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0,
     # backend order: vendor VISA (NI-VISA), pure-python (serial/USB/TCP), and
     # Linux-GPIB (needed for NI GPIB adapters on Linux where NI-VISA cannot
     # drive them). The first backend that can open the resource wins.
+    # backend order for GPIB resources: the direct Linux-GPIB session (no
+    # NI driver needed on Linux), then the pyvisa backends (vendor VISA,
+    # pure-python, linux-gpib backend) as fallbacks.
+    if is_gpib_resource(resource):
+        try:
+            from drivers.linux_gpib import LinuxGpibSession
+            return LinuxGpibSession(resource, timeout=timeout)
+        except ImportError:
+            pass  # linux-gpib bindings not installed; fall through to pyvisa
+
     last_error = None
     for backend in ("", "@py", "@gpib"):
         try:
