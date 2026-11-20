@@ -21,6 +21,9 @@ MODELS = {
 IDN_COMMAND = "*IDN?"
 SCAN_TIMEOUT = 1.5  # s, per-resource timeout during the scan
 SCAN_BAUD = 9600    # RS-232 default of both Keithley instruments
+# the Keithleys may be configured with a non-default baud rate, so the scan
+# tries the rates supported by both instruments before giving up on a port
+SERIAL_BAUDS = (9600, 19200, 38400, 57600)
 
 
 def identify(idn):
@@ -81,26 +84,31 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
     found = {}
     progress(f"Scanning {len(candidates)} resource(s)...")
     for res in candidates:
-        session = None
-        try:
-            progress(f"Probing {res}")
-            session = session_factory(str(res), baud=SCAN_BAUD,
-                                      timeout=SCAN_TIMEOUT)
-            idn = str(session.query(IDN_COMMAND)).strip()
-            key = identify(idn)
-            if key and key not in found:
-                found[key] = {"resource": str(res), "idn": idn}
-                progress(f"Found {key}: {res} ({idn})")
-            elif idn:
-                progress(f"  {res}: unrecognized instrument ({idn})")
-        except Exception as error:
-            progress(f"  {res}: no answer ({error})")
-        finally:
-            if session is not None:
-                try:
-                    session.close()
-                except Exception:
-                    pass
+        r = str(res)
+        bauds = SERIAL_BAUDS if r.upper().startswith("ASRL") else (SCAN_BAUD,)
+        found_idn = None
+        for baud in bauds:
+            session = None
+            try:
+                progress(f"Probing {r} @ {baud} baud")
+                session = session_factory(r, baud=baud, timeout=SCAN_TIMEOUT)
+                found_idn = str(session.query(IDN_COMMAND)).strip()
+                break
+            except Exception as error:
+                progress(f"  {r} @ {baud}: no answer ({error})")
+            finally:
+                if session is not None:
+                    try:
+                        session.close()
+                    except Exception:
+                        pass
+
+        key = identify(found_idn)
+        if key and key not in found:
+            found[key] = {"resource": r, "idn": found_idn}
+            progress(f"Found {key}: {r} ({found_idn})")
+        elif found_idn is not None:
+            progress(f"  {r}: unrecognized instrument ({found_idn})")
 
     missing = [key for key in MODELS if key not in found]
     return found, missing
