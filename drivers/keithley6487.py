@@ -11,15 +11,41 @@ from drivers.base import InstrumentBase, parse_scpi_float
 class Keithley6487(InstrumentBase):
 
     @classmethod
-    def connect(cls, resource: str, *, baud: int = 9600, timeout: float = 5.0,
+    def connect(cls, resource: str, *, timeout: float = 5.0,
                 session_factory=None):
+        """Open a session (RS-232) and return a configured driver instance.
+
+        The serial line settings (baud rate, parity) are auto-detected and the
+        connected instrument is verified to be a Model 6487 via *IDN?.
+        """
         if session_factory is None:
             from drivers.session import open_session as session_factory
-        session = session_factory(resource, baud=baud, timeout=timeout)
-        driver = cls(session)
-        driver._send("*RST")
-        driver._send("*CLS")
-        return driver
+        from drivers.detect import SERIAL_PROBES, identify
+        from drivers.base import InstrumentError
+
+        last_error = None
+        for baud, parity in SERIAL_PROBES:
+            session = None
+            try:
+                session = session_factory(resource, baud=baud, timeout=timeout,
+                                          parity=parity)
+                idn = str(session.query("*IDN?")).strip()
+            except Exception as error:
+                last_error = error
+                if session is not None:
+                    session.close()
+                continue
+            if identify(idn) != "pico":
+                last_error = (f"expected a Model 6487 on '{resource}' at "
+                              f"{baud} baud/{parity} parity, got '{idn}'")
+                session.close()
+                continue
+            driver = cls(session)
+            driver._send("*RST")
+            driver._send("*CLS")
+            return driver
+        raise InstrumentError(
+            f"Could not connect to a Keithley 6487 on '{resource}': {last_error}")
 
     def setup(self, autorange: bool, autorange_llimit: float, fixed_range: float,
               nplc: float, damping: bool, median_on: bool, median_rank: int,

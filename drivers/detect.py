@@ -21,9 +21,14 @@ MODELS = {
 IDN_COMMAND = "*IDN?"
 SCAN_TIMEOUT = 1.5  # s, per-resource timeout during the scan
 SCAN_BAUD = 9600    # RS-232 default of both Keithley instruments
-# the Keithleys may be configured with a non-default baud rate, so the scan
-# tries the rates supported by both instruments before giving up on a port
-SERIAL_BAUDS = (9600, 19200, 38400, 57600)
+# Serial line settings tried when probing a port and when connecting: both
+# Keithleys support 9600-57600 baud, 8 data bits, and none/even parity
+# (defaults are 9600/none; instruments may be configured differently, e.g.
+# 19200/even).
+SERIAL_PROBES = [
+    (9600, "none"), (19200, "even"), (19200, "none"), (9600, "even"),
+    (38400, "none"), (38400, "even"), (57600, "none"), (57600, "even"),
+]
 
 
 def identify(idn):
@@ -85,17 +90,19 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
     progress(f"Scanning {len(candidates)} resource(s)...")
     for res in candidates:
         r = str(res)
-        bauds = SERIAL_BAUDS if r.upper().startswith("ASRL") else (SCAN_BAUD,)
+        probes = SERIAL_PROBES if r.upper().startswith("ASRL") \
+            else [(SCAN_BAUD, "none")]
         found_idn = None
-        for baud in bauds:
+        for baud, parity in probes:
             session = None
             try:
-                progress(f"Probing {r} @ {baud} baud")
-                session = session_factory(r, baud=baud, timeout=SCAN_TIMEOUT)
+                progress(f"Probing {r} @ {baud} baud, {parity} parity")
+                session = session_factory(r, baud=baud, timeout=SCAN_TIMEOUT,
+                                          parity=parity)
                 found_idn = str(session.query(IDN_COMMAND)).strip()
                 break
             except Exception as error:
-                progress(f"  {r} @ {baud}: no answer ({error})")
+                progress(f"  {r} @ {baud}/{parity}: no answer ({error})")
             finally:
                 if session is not None:
                     try:

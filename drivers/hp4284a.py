@@ -18,11 +18,23 @@ APER_MAP = {"short": "SHOR", "medium": "MED", "long": "LONG"}
 class HP4284A(InstrumentBase):
 
     @classmethod
-    def connect(cls, resource: str, *, baud: int = 9600, timeout: float = 10.0,
+    def connect(cls, resource: str, *, timeout: float = 10.0,
                 session_factory=None):
+        """Open a session (GPIB) and return a configured driver instance.
+
+        The connected instrument is verified to be an HP 4284A via *IDN?.
+        """
         if session_factory is None:
             from drivers.session import open_session as session_factory
-        session = session_factory(resource, baud=baud, timeout=timeout)
+        from drivers.base import InstrumentError
+        from drivers.detect import identify
+
+        session = session_factory(resource, timeout=timeout)
+        idn = str(session.query("*IDN?")).strip()
+        if identify(idn) != "lcr":
+            session.close()
+            raise InstrumentError(
+                f"Expected an HP 4284A on '{resource}', got '{idn}'")
         driver = cls(session)
         driver._send("*RST")
         driver._send("*CLS")

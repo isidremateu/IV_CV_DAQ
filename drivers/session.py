@@ -37,7 +37,8 @@ class _AdaptiveTerminationSession:
         return getattr(self._inner, name)
 
 
-def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0):
+def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0,
+                 parity: str = "none", data_bits: int = 8, stop_bits: int = 1):
     """Open a PyVISA session.
 
     Works for both RS-232 (ASRL, the two Keithleys) and GPIB (the HP 4284A).
@@ -47,6 +48,7 @@ def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0):
     """
     try:
         import pyvisa
+        from pyvisa.constants import Parity, StopBits
     except ImportError:
         raise ImportError(
             "pyvisa is not installed. Activate the virtual environment and run: "
@@ -60,6 +62,11 @@ def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0):
     }
     if resource.upper().startswith("ASRL"):
         kwargs["baud_rate"] = baud
+        kwargs["parity"] = {"none": Parity.none,
+                            "even": Parity.even,
+                            "odd": Parity.odd}[parity]
+        kwargs["data_bits"] = int(data_bits)
+        kwargs["stop_bits"] = {1: StopBits.one, 2: StopBits.two}[int(stop_bits)]
 
     try:
         manager = pyvisa.ResourceManager()

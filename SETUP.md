@@ -56,8 +56,10 @@ with `*IDN?` (1.5 s timeout, harmless for the instruments):
 Detected resources are filled into the fields automatically; ports that are
 busy or do not answer are skipped and reported. Notes:
 
-- The Keithleys are probed at their default 9600 baud. If you changed the
-  instrument's baud rate, enter the resource string manually.
+- The Keithleys' serial line settings (baud rate, parity) do not need to be
+  at their 9600/none defaults: the detection scan and the drivers
+  automatically try all baud/parity combinations supported by the
+  instruments (9600-57600 baud, none/even parity).
 - The scan runs in the background and can take tens of seconds when many
   serial ports are present.
 
