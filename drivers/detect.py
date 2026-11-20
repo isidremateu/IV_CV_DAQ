@@ -19,15 +19,19 @@ MODELS = {
     "lcr": "4284A",
 }
 IDN_COMMAND = "*IDN?"
-SCAN_TIMEOUT = 1.5  # s, per-resource timeout during the scan
+SCAN_TIMEOUT = 1.0  # s, per-resource timeout during the scan
 SCAN_BAUD = 9600    # RS-232 default of both Keithley instruments
 # Serial line settings tried when probing a port and when connecting: both
-# Keithleys support 9600-57600 baud, 8 data bits, and none/even parity
-# (defaults are 9600/none; instruments may be configured differently, e.g.
-# 19200/even).
+# Keithleys support 9600-57600 baud, 7 or 8 data bits, and none/even parity.
+# Defaults are 9600/none/8, but instruments are frequently configured
+# differently (e.g. 19200/even, with either 7 or 8 data bits).
 SERIAL_PROBES = [
-    (9600, "none"), (19200, "even"), (19200, "none"), (9600, "even"),
-    (38400, "none"), (38400, "even"), (57600, "none"), (57600, "even"),
+    (19200, "even", 8), (19200, "even", 7),
+    (9600, "none", 8), (9600, "even", 7),
+    (19200, "none", 8), (9600, "even", 8), (9600, "none", 7),
+    (19200, "none", 7), (9600, "even", 8),
+    (38400, "none", 8), (38400, "even", 8),
+    (57600, "none", 8), (57600, "even", 8),
 ]
 
 
@@ -111,18 +115,17 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
     for res in candidates:
         r = str(res)
         probes = SERIAL_PROBES if r.upper().startswith("ASRL") \
-            else [(SCAN_BAUD, "none")]
+            else [(SCAN_BAUD, "none", 8)]
         found_idn = None
-        identified = False
-        for baud, parity in probes:
+        for baud, parity, data_bits in probes:
             session = None
             try:
-                progress(f"Probing {r} @ {baud} baud, {parity} parity")
+                progress(f"Probing {r} @ {baud} baud, {parity} parity, "
+                         f"{data_bits} data bits")
                 session = session_factory(r, baud=baud, timeout=SCAN_TIMEOUT,
-                                          parity=parity)
+                                          parity=parity, data_bits=data_bits)
                 found_idn = str(session.query(IDN_COMMAND)).strip()
                 if identify(found_idn):
-                    identified = True
                     break
                 # a response, but not one of our instruments: try the next
                 # line settings (the instrument may use a different baud rate)

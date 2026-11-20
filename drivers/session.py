@@ -25,13 +25,18 @@ class _AdaptiveTerminationSession:
     def query(self, command, delay=None):
         self._inner.read_termination = self._term
         try:
-            return self._inner.query(command, delay)
+            response = self._inner.query(command, delay)
         except Exception:
             if self._term == "\n":
                 # the instrument may transmit CR-terminated messages
                 self._term = "\r"
                 return self.query(command, delay)
             raise
+        # strip parity high-bits that fold into the data when the instrument
+        # uses 7 data bits + parity and we read with 8 data bits
+        if any(ord(ch) > 127 for ch in response):
+            response = "".join(chr(ord(ch) & 0x7F) for ch in response)
+        return response
 
     def close(self):
         self._inner.close()
@@ -62,6 +67,10 @@ def open_session(resource: str, *, baud: int = 9600, timeout: float = 5.0,
         "read_termination": "\n",
         "write_termination": "\n",
         "timeout": timeout * 1000.0,  # pyvisa expects ms
+        # never fail decoding odd bytes (e.g. parity bits folded into the
+        # data when the instrument uses 7 data bits + parity); high bits are
+        # stripped later, since all instrument traffic is ASCII
+        "encoding": "latin-1",
     }
     if resource.upper().startswith("ASRL"):
         kwargs["baud_rate"] = baud

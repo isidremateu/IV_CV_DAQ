@@ -17,15 +17,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pyvisa
 
-from drivers.detect import candidate_resources, identify
+from drivers.detect import SERIAL_PROBES, candidate_resources, identify
 
 
-def probe(resource, baud):
+def probe(resource, baud, parity="none", data_bits=8):
     """Query *IDN? on one resource; returns (idn, error_message)."""
     from drivers.session import open_session
     session = None
     try:
-        session = open_session(resource, baud=baud, timeout=2.0)
+        session = open_session(resource, baud=baud, timeout=2.0,
+                               parity=parity, data_bits=data_bits)
         idn = str(session.query("*IDN?")).strip()
         return idn, None
     except Exception as error:
@@ -89,14 +90,15 @@ def main():
     for res in resources:
         r = str(res)
         if r.upper().startswith("ASRL"):
-            for baud in (9600, 19200, 38400, 57600):
-                idn, error = probe(r, baud)
+            for baud, parity, data_bits in SERIAL_PROBES:
+                idn, error = probe(r, baud, parity, data_bits)
                 if error is None:
-                    print(f"  {r} @ {baud}: '{idn}' -> {identify(idn)}")
+                    print(f"  {r} @ {baud}/{parity}/{data_bits}: "
+                          f"'{idn}' -> {identify(idn)}")
                     if identify(idn):
                         break   # identified: no need for other line settings
                 else:
-                    print(f"  {r} @ {baud}: {error}")
+                    print(f"  {r} @ {baud}/{parity}/{data_bits}: {error}")
         else:
             idn, error = probe(r, 9600)
             if error is None and idn and "PROLOGIX" in idn.upper():

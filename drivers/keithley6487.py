@@ -24,11 +24,11 @@ class Keithley6487(InstrumentBase):
         from drivers.base import InstrumentError
 
         last_error = None
-        for baud, parity in SERIAL_PROBES:
+        for baud, parity, data_bits in SERIAL_PROBES:
             session = None
             try:
                 session = session_factory(resource, baud=baud, timeout=timeout,
-                                          parity=parity)
+                                          parity=parity, data_bits=data_bits)
                 idn = str(session.query("*IDN?")).strip()
             except Exception as error:
                 last_error = error

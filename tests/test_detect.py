@@ -44,7 +44,7 @@ def test_scan_finds_and_maps_all_instruments():
         "ASRL/dev/ttyUSB0::INSTR": "",
     }
 
-    def factory(resource, baud=9600, timeout=5.0, parity="none"):
+    def factory(resource, **kwargs):
         return FakeScanSession(idns[resource])
 
     found, missing = scan_for_instruments(candidates, session_factory=factory)
@@ -62,7 +62,7 @@ def test_scan_skips_unopenable_ports():
         "ASRL/dev/ttyS1::INSTR": "KEITHLEY INSTRUMENTS INC., MODEL 6487, 2, B11",
     }
 
-    def factory(resource, baud=9600, timeout=5.0, parity="none"):
+    def factory(resource, **kwargs):
         if resource == "ASRL/dev/ttyS0::INSTR":
             raise RuntimeError("Permission denied")
         return FakeScanSession(idns[resource])
@@ -77,7 +77,7 @@ def test_scan_skips_unopenable_ports():
 def test_scan_reports_unrecognized_instruments():
     candidates = ["GPIB0::5::INSTR"]
 
-    def factory(resource, baud=9600, timeout=5.0, parity="none"):
+    def factory(resource, **kwargs):
         return FakeScanSession("KEITHLEY INSTRUMENTS INC., MODEL 6517, 3, A10")
 
     found, missing = scan_for_instruments(candidates, session_factory=factory)
@@ -90,8 +90,8 @@ def test_connect_autodetects_baud_and_parity():
     idn2410 = "KEITHLEY INSTRUMENTS INC., MODEL 2410, 1, C33"
 
     class FakeBaudSession:
-        def __init__(self, baud, parity):
-            self.baud, self.parity = baud, parity
+        def __init__(self, baud, parity, data_bits):
+            self.settings = (baud, parity, data_bits)
             self.commands = []
 
         def write(self, command):
@@ -99,26 +99,23 @@ def test_connect_autodetects_baud_and_parity():
 
         def query(self, command):
             self.commands.append(command)
-            if command == "*IDN?":
-                if (self.baud, self.parity) == (19200, "even"):
-                    return idn2410
-                raise RuntimeError("timeout expired")
-            return "1"
+            if command == "*IDN?" and self.settings == (19200, "even", 8):
+                return idn2410
+            raise RuntimeError("timeout expired")
 
         def close(self):
             pass
 
     created = {}
 
-    def factory(resource, baud=9600, timeout=5.0, parity="none"):
-        session = FakeBaudSession(baud, parity)
+    def factory(resource, baud=9600, timeout=5.0, parity="none", data_bits=8):
+        session = FakeBaudSession(baud, parity, data_bits)
         created["session"] = session
         return session
 
     driver = Keithley2410.connect("ASRL/dev/ttyUSB0::INSTR",
                                   session_factory=factory)
-    assert created["session"].baud == 19200
-    assert created["session"].parity == "even"
+    assert created["session"].settings == (19200, "even", 8)
     assert "*RST" in created["session"].commands  # safety setup applied
 
 

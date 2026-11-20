@@ -64,8 +64,9 @@ class LinuxGpibSession:
         if isinstance(data, tuple):
             data = data[0]
         if isinstance(data, bytes):
-            data = data.decode("ascii", "replace")
-        return str(data).strip()
+            data = data.decode("latin-1", "replace")
+        # strip parity high-bits (all instrument traffic is ASCII)
+        return "".join(chr(ord(ch) & 0x7F) for ch in str(data)).strip()
 
     def close(self):
         try:
