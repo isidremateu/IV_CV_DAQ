@@ -6,7 +6,7 @@ The unit is always operated on the 1000 V voltage range, sourcing DC voltage
 and measuring the total sourced current.
 """
 
-from drivers.base import InstrumentBase, InstrumentError, parse_scpi_float
+from drivers.base import InstrumentBase, InstrumentError, parse_scpi_float, scpi_number
 
 
 class Keithley2410(InstrumentBase):
@@ -60,13 +60,13 @@ class Keithley2410(InstrumentBase):
         self._send(f":SOUR:VOLT:RANG {self.RANGE:g}")
         self._send(':SENS:FUNC "CURR"')
         self._send(":FORM:ELEM READ")
-        self._send(f":SENS:CURR:PROT:LEV {compliance:g}")
+        self._send(f":SENS:CURR:PROT:LEV {scpi_number(compliance)}")
         if autorange:
             self._send(":SENS:CURR:RANG:AUTO ON")
-            self._send(f":SENS:CURR:RANG:AUTO:LLIM {autorange_llimit:g}")
+            self._send(f":SENS:CURR:RANG:AUTO:LLIM {scpi_number(autorange_llimit)}")
         else:
             self._send(":SENS:CURR:RANG:AUTO OFF")
-            self._send(f":SENS:CURR:RANG {fixed_range:g}")
+            self._send(f":SENS:CURR:RANG {scpi_number(fixed_range)}")
         self._send(":OUTP OFF")
 
     def output(self, on: bool):
@@ -74,7 +74,7 @@ class Keithley2410(InstrumentBase):
 
     def set_voltage(self, voltage: float):
         """Set the bias voltage (signed, polarity applied by the caller)."""
-        self._send(f":SOUR:VOLT:LEV {voltage:.8g}")
+        self._send(f":SOUR:VOLT:LEV {scpi_number(voltage)}")
         # *OPC? synchronizes: returns only after the command has completed
         self._ask("*OPC?")
 

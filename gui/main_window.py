@@ -1,5 +1,8 @@
 """Main application window: settings panels, live plot and run control."""
 
+import os
+import re
+
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
@@ -59,7 +62,18 @@ class MeasurementThread(QThread):
             result = engine.run()
             self.done.emit(True, f"Measurement {result['status']}.")
         except Exception as error:  # surface any failure in the GUI
-            self.done.emit(False, f"{type(error).__name__}: {error}")
+            message = f"{type(error).__name__}: {error}"
+            # surface instrument-side error queues (e.g. syntax errors that
+            # the instruments report on their displays)
+            for driver in self._drivers:
+                try:
+                    err = str(driver.session.query(":SYST:ERR?")).strip()
+                    match = re.match(r"\s*([+-]?\d+)", err)
+                    if err and (match is None or match.group(1) != "0"):
+                        message += f"\n{type(driver).__name__} reports: {err}"
+                except Exception:
+                    pass
+            self.done.emit(False, message)
         finally:
             for driver in self._drivers:
                 try:

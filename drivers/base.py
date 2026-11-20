@@ -32,6 +32,16 @@ def parse_scpi_float(response: str) -> float:
     raise InstrumentError(f"Could not parse instrument response: {response!r}")
 
 
+def scpi_number(value) -> str:
+    """Format a float as a valid SCPI NR3 number.
+
+    Keithley instruments reject NR3 numbers without a decimal point in the
+    mantissa (e.g. '1e-06' -> syntax error -102), so always emit the full
+    form ('1.000000e-06').
+    """
+    return f"{float(value):.6e}"
+
+
 class InstrumentBase:
     """Thin wrapper around a VISA-like session (objects with write/query/close)."""
 

@@ -21,13 +21,13 @@ def test_2410_setup_and_voltage():
     assert ":SOUR:FUNC VOLT" in joined
     assert ":SOUR:VOLT:RANG 1000" in joined
     assert ':SENS:FUNC "CURR"' in joined
-    assert ":SENS:CURR:PROT:LEV 5e-07" in joined
+    assert ":SENS:CURR:PROT:LEV 5.000000e-07" in joined
     assert ":SENS:CURR:RANG:AUTO ON" in joined
-    assert ":SENS:CURR:RANG:AUTO:LLIM 1e-09" in joined
+    assert ":SENS:CURR:RANG:AUTO:LLIM 1.000000e-09" in joined
     assert ":OUTP OFF" in joined
 
     d.set_voltage(-42.5)
-    assert ":SOUR:VOLT:LEV -42.5" in s.commands
+    assert ":SOUR:VOLT:LEV -4.250000e+01" in s.commands
     assert "*OPC?" in s.commands  # synchronization query after set
     assert d.get_voltage() == -42.5
 
@@ -39,7 +39,7 @@ def test_2410_fixed_range_when_not_autorange():
             fixed_range=2e-6)
     joined = ";".join(s.commands)
     assert ":SENS:CURR:RANG:AUTO OFF" in joined
-    assert ":SENS:CURR:RANG 2e-06" in joined
+    assert ":SENS:CURR:RANG 2.000000e-06" in joined
 
 
 def test_6487_setup_full():
@@ -56,7 +56,7 @@ def test_6487_setup_full():
     assert ":SENS:CURR:AVER:STAT ON" in joined
     assert ":SENS:CURR:AVER:TCON REP" in joined
     assert ":SENS:CURR:AVER:COUN 20" in joined
-    assert ":SENS:CURR:RANG:AUTO:LLIM 2e-09" in joined
+    assert ":SENS:CURR:RANG:AUTO:LLIM 2.000000e-09" in joined
     assert ":SYST:ZCH OFF" in joined  # zero check off while measuring
 
 
@@ -73,8 +73,8 @@ def test_4284a_setup_fixed_configuration():
     d.setup(frequency=1e4, aper="medium", level=1.0)
     joined = ";".join(s.commands)
     assert ":FUNC:IMP CPG" in joined          # parallel Cp-G
-    assert ":FREQ 10000" in joined
-    assert ":VOLT 1" in joined
+    assert ":FREQ 1.000000e+04" in joined
+    assert ":VOLT 1.000000e+00" in joined
     assert ":APER MED" in joined
     assert ":TRIG:SOUR BUS" in joined
     assert ":BIAS:STAT OFF" in joined         # internal bias off (2410 biases)

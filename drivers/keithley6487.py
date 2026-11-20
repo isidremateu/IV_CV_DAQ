@@ -5,7 +5,7 @@ Manual (6487-901-01 Rev. B) available in Instruments/Ke6487/manuals/.
 The voltage source of the 6487 is NOT used; bias is provided by the 2410.
 """
 
-from drivers.base import InstrumentBase, parse_scpi_float
+from drivers.base import InstrumentBase, parse_scpi_float, scpi_number
 
 
 class Keithley6487(InstrumentBase):
@@ -56,7 +56,7 @@ class Keithley6487(InstrumentBase):
         """Apply all picoammeter settings from the GUI panel."""
         self._send(":FORM:ELEM READ")
         self._send(':SENS:FUNC "CURR"')
-        self._send(f":SENS:CURR:NPLC {nplc:g}")
+        self._send(f":SENS:CURR:NPLC {scpi_number(nplc)}")
 
         self._send(":SENS:CURR:DAMP {}".format("ON" if damping else "OFF"))
 
@@ -72,10 +72,10 @@ class Keithley6487(InstrumentBase):
 
         if autorange:
             self._send(":SENS:CURR:RANG:AUTO ON")
-            self._send(f":SENS:CURR:RANG:AUTO:LLIM {autorange_llimit:g}")
+            self._send(f":SENS:CURR:RANG:AUTO:LLIM {scpi_number(autorange_llimit)}")
         else:
             self._send(":SENS:CURR:RANG:AUTO OFF")
-            self._send(f":SENS:CURR:RANG {fixed_range:g}")
+            self._send(f":SENS:CURR:RANG {scpi_number(fixed_range)}")
 
         # Zero check must be off while measuring (readings are suppressed otherwise)
         self._send(":SYST:ZCH OFF")
