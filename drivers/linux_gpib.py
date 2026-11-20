@@ -33,14 +33,20 @@ class LinuxGpibSession:
 
         self._gpib = gpib
         board, pad = int(match.group(1)), int(match.group(2))
-        tmo_index = min(_TIMEOUTS, key=lambda i: abs(_TIMEOUTS[i] - timeout))
-        # ibdev(board_index, primary_address, secondary_address, timeout,
-        #       end_of_transmit, end_of_string)
-        self.handle = gpib.ibdev(board, pad, 0, tmo_index, 1, 0)
+        # the bindings expose either a high-level API (dev/write/read) or the
+        # low-level ib* calls, depending on the linux-gpib version
+        if hasattr(gpib, "dev"):
+            self.handle = gpib.dev(board, pad)
+        else:
+            tmo_index = min(_TIMEOUTS, key=lambda i: abs(_TIMEOUTS[i] - timeout))
+            self.handle = gpib.ibdev(board, pad, 0, tmo_index, 1, 0)
 
     def write(self, command):
         data = command if isinstance(command, bytes) else command.encode("ascii")
-        self._gpib.ibwrt(self.handle, data)
+        if hasattr(self._gpib, "write"):
+            self._gpib.write(self.handle, data)
+        else:
+            self._gpib.ibwrt(self.handle, data)
 
     def query(self, command, delay=None):
         self.write(command)
@@ -49,9 +55,12 @@ class LinuxGpibSession:
         return self._read_response()
 
     def _read_response(self):
-        # ibrd blocks until EOI (or the board timeout); some binding versions
-        # return (data, status) instead of just data - handle both
-        data = self._gpib.ibrd(self.handle, 1 << 20)
+        if hasattr(self._gpib, "read"):
+            data = self._gpib.read(self.handle, 1 << 20)
+        else:
+            # ibrd blocks until EOI (or the board timeout); some binding
+            # versions return (data, status) instead of just data
+            data = self._gpib.ibrd(self.handle, 1 << 20)
         if isinstance(data, tuple):
             data = data[0]
         if isinstance(data, bytes):
@@ -60,6 +69,9 @@ class LinuxGpibSession:
 
     def close(self):
         try:
-            self._gpib.ibonl(self.handle, 0)
+            if hasattr(self._gpib, "close"):
+                self._gpib.close(self.handle)
+            else:
+                self._gpib.ibonl(self.handle, 0)
         except Exception:
             pass

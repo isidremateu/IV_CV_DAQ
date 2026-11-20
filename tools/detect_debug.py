@@ -93,8 +93,8 @@ def main():
                 idn, error = probe(r, baud)
                 if error is None:
                     print(f"  {r} @ {baud}: '{idn}' -> {identify(idn)}")
-                    if idn:
-                        break
+                    if identify(idn):
+                        break   # identified: no need for other line settings
                 else:
                     print(f"  {r} @ {baud}: {error}")
         else:

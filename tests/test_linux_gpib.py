@@ -55,6 +55,35 @@ def test_session_write_query_close(fake_gpib):
     assert fake_gpib.closed == [7]
 
 
+def test_session_high_level_api(fake_gpib, monkeypatch):
+    """Newer linux-gpib bindings expose dev/write/read instead of ib* calls."""
+    del fake_gpib
+    calls = []
+
+    class HighLevelBindings(types.ModuleType):
+        def dev(self, board, pad):
+            calls.append(("dev", board, pad))
+            return 3
+
+        def write(self, handle, data):
+            calls.append(("write", data))
+
+        def read(self, handle, count):
+            calls.append(("read", count))
+            return "HEWLETT-PACKARD,4284A,0,A.01.13"
+
+        def close(self, handle):
+            calls.append(("close", handle))
+
+    monkeypatch.setitem(sys.modules, "gpib", HighLevelBindings("gpib"))
+    session = LinuxGpibSession("GPIB0::17::INSTR")
+    assert session.query("*IDN?") == "HEWLETT-PACKARD,4284A,0,A.01.13"
+    session.close()
+    assert ("dev", 0, 17) in calls
+    assert ("write", b"*IDN?") in calls
+    assert ("close", 3) in calls
+
+
 def test_invalid_resource_raises():
     with pytest.raises(ValueError):
         LinuxGpibSession("ASRL/dev/ttyS0::INSTR")

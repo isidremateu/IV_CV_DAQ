@@ -113,6 +113,7 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
         probes = SERIAL_PROBES if r.upper().startswith("ASRL") \
             else [(SCAN_BAUD, "none")]
         found_idn = None
+        identified = False
         for baud, parity in probes:
             session = None
             try:
@@ -120,7 +121,11 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
                 session = session_factory(r, baud=baud, timeout=SCAN_TIMEOUT,
                                           parity=parity)
                 found_idn = str(session.query(IDN_COMMAND)).strip()
-                break
+                if identify(found_idn):
+                    identified = True
+                    break
+                # a response, but not one of our instruments: try the next
+                # line settings (the instrument may use a different baud rate)
             except Exception as error:
                 progress(f"  {r} @ {baud}/{parity}: no answer ({error})")
             finally:
