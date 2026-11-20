@@ -108,14 +108,17 @@ def test_scan_uses_configured_probes():
 
     def factory(resource, **kwargs):
         used.append(kwargs)
-        return FakeScanSession("KEITHLEY INSTRUMENTS INC., MODEL 2410, 1, C33")
+        # a real instrument only answers at its actual line settings
+        if kwargs.get("baud") == 19200 and kwargs.get("parity") == "even" \
+                and kwargs.get("data_bits") == 8:
+            return FakeScanSession("KEITHLEY INSTRUMENTS INC., MODEL 2410, 1, C33")
+        raise RuntimeError("timeout expired")
 
-    scan_for_instruments(candidates, session_factory=factory,
-                         serial_probes=[(19200, "even", 8)])
-    assert len(used) == 1
-    assert used[0]["baud"] == 19200
-    assert used[0]["parity"] == "even"
-    assert used[0]["data_bits"] == 8
+    found, missing = scan_for_instruments(candidates, session_factory=factory,
+                                          serial_probes=[(19200, "even", 8)])
+    assert len(used) == 1                       # only the configured combo tried
+    assert found["hvps"]["resource"] == "ASRL/dev/ttyS0::INSTR"
+    assert missing == ["pico", "lcr"]
 
 
 def test_connect_uses_configured_probes():

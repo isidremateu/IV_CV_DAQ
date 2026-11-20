@@ -160,10 +160,10 @@ def scan_for_instruments(candidates=None, *, progress=None, session_factory=None
     progress(f"Scanning {len(candidates)} resource(s)...")
     for res in candidates:
         r = str(res)
-        probes = SERIAL_PROBES if r.upper().startswith("ASRL") \
+        resource_probes = probes if r.upper().startswith("ASRL") \
             else [(SCAN_BAUD, "none", 8)]
         found_idn = None
-        for baud, parity, data_bits in probes:
+        for baud, parity, data_bits in resource_probes:
             session = None
             try:
                 progress(f"Probing {r} @ {baud} baud, {parity} parity, "
