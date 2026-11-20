@@ -24,8 +24,9 @@ sudo usermod -aG dialout $USER
 
 Identify the serial ports of the instruments (e.g. `/dev/ttyS0`, or
 `/dev/ttyUSB0` for USB-serial adapters) and enter them in the *Connections*
-panel of the application. The Keithleys use 9600 baud, 8N1, LF terminator
-(instrument default).
+panel of the application. The Keithleys may use other line settings (e.g.
+19200 baud, even parity): the application auto-detects them, as described in
+*Instrument detection* below.
 
 ### GPIB access (HP 4284A)
 
